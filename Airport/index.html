@@ -1,1 +1,506 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Сім’я летить на відпочинок</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:wght@400;600&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: desktop only. Two cards fill the whole height of the screen.
+   Left (wider): the text, one line per sentence where possible. Right: the current question with its input, short rows for answered ones.
+   Buttons are the last element in each card and sit exactly 30px above its bottom edge.
+   --fs is the base font size. A script picks the largest value for which everything fits in the card height. */
+:root {
+  --bg: #F3F6F7;
+  --surface: #FFFFFF;
+  --surface-2: #E8EEF1;
+  --ink: #1C2630;
+  --ink-soft: #4F5D6A;
+  --line: #CFD8DE;
+  --comma: #AD4A06;
+  --comma-bg: #FCE6D2;
+  --dot: #1B55C4;
+  --dot-bg: #DCE7FB;
+  --hl: #FFE98A;
+  --hl-line: #8A6A00;
+  --btn: #243746;
+  --btn-ink: #FFFFFF;
+  --ok: #17693F;
+  --ok-bg: #DDF1E5;
+  --no: #8E3345;
+  --no-bg: #F7E2E6;
+  --font-read: 'Literata', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Source Sans 3', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --fs: 20px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11171C;
+    --surface: #1A222A;
+    --surface-2: #232D37;
+    --ink: #E8EEF3;
+    --ink-soft: #A9B7C3;
+    --line: #33424F;
+    --comma: #FFB566;
+    --comma-bg: #3B2A17;
+    --dot: #9DBEFF;
+    --dot-bg: #1F3050;
+    --hl: #4D4210;
+    --hl-line: #F0CF4A;
+    --btn: #D3E3EE;
+    --btn-ink: #11171C;
+    --ok: #74D6A0;
+    --ok-bg: #173326;
+    --no: #F4A3B1;
+    --no-bg: #3A1F27;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11171C;
+  --surface: #1A222A;
+  --surface-2: #232D37;
+  --ink: #E8EEF3;
+  --ink-soft: #A9B7C3;
+  --line: #33424F;
+  --comma: #FFB566;
+  --comma-bg: #3B2A17;
+  --dot: #9DBEFF;
+  --dot-bg: #1F3050;
+  --hl: #4D4210;
+  --hl-line: #F0CF4A;
+  --btn: #D3E3EE;
+  --btn-ink: #11171C;
+  --ok: #74D6A0;
+  --ok-bg: #173326;
+  --no: #F4A3B1;
+  --no-bg: #3A1F27;
+  color-scheme: dark;
+}
 
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--fs);
+  line-height: 1.5;
+  overflow: hidden;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--dot); outline-offset: 2px; }
+h2:focus, .qwrap:focus { outline: none; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.wrap { width: 80vw; max-width: 100%; margin: 0 auto; height: 100%; display: flex; flex-direction: column; }
+.cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 24px 30px; display: flex; flex-direction: column; gap: .55em; min-width: 0; min-height: 0; overflow: hidden; }
+
+/* buttons: always the last element of a card, pinned 30px above its bottom edge */
+.actions { margin-top: auto; display: flex; flex-wrap: wrap; gap: .8em; align-items: center; }
+.btn { font-size: .75em; line-height: 1.3; padding: .55em 1.2em; border-radius: .5em; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 600; }
+.btn:hover:not(:disabled) { border-color: var(--ink-soft); }
+.btn.primary { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); }
+.btn:disabled { opacity: .45; cursor: default; color: var(--ink); }
+
+.counter { margin: 0; font-size: .6em; color: var(--ink-soft); }
+
+/* reading text */
+.reading { font-family: var(--font-read); font-size: 1em; line-height: 1.5; letter-spacing: .01em; word-spacing: .1em; margin: 0; }
+.reading.blocks { display: flex; flex-direction: column; gap: .3em; }
+.sent { display: block; padding: .2em 0 .2em .6em; border-left: .2em solid transparent; color: var(--ink-soft); }
+.sent.current { border-left-color: var(--ink); color: var(--ink); }
+.sent.unseen { visibility: hidden; }
+.textcard.quiz .sent { color: var(--ink); }
+.sent.hl { background: var(--hl); border-left-color: var(--hl-line); border-radius: 0 .4em .4em 0; }
+.pc { display: inline-block; font-weight: 700; padding: 0 .12em; margin: 0 .04em; border-radius: .22em; line-height: 1.1; font-size: 1.2em; }
+.pc.comma { color: var(--comma); background: var(--comma-bg); }
+.pc.dot { color: var(--dot); background: var(--dot-bg); }
+.pause { font-family: var(--font-ui); font-size: .7em; font-weight: 700; margin-left: .1em; letter-spacing: -.05em; vertical-align: .15em; }
+.pause.c { color: var(--comma); }
+.pause.d { color: var(--dot); }
+.w { white-space: nowrap; }
+
+/* questions */
+.ph-text { margin: 0; font-size: .8em; color: var(--ink-soft); }
+.qwrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .55em; margin: 0; }
+.qnum { margin: 0; font-size: .6em; color: var(--ink-soft); letter-spacing: .02em; }
+.question { display: block; font-family: var(--font-read); font-weight: 600; font-size: 1em; line-height: 1.35; }
+.ans { width: 100%; padding: .4em .7em; border: 2px solid var(--line); border-radius: .4em; background: var(--bg); color: var(--ink); font-size: .9em; }
+.ans::placeholder { color: var(--ink-soft); opacity: 1; }
+.ans[readonly] { cursor: default; }
+.ans.ok { border-color: var(--ok); background: var(--ok-bg); }
+.fbslot { min-height: 2.9em; }
+.feedback { padding: .45em .7em; border-radius: .5em; font-weight: 600; font-size: .75em; line-height: 1.4; }
+.feedback.ok { background: var(--ok-bg); color: var(--ok); }
+.feedback.no { background: var(--no-bg); color: var(--no); }
+.feedback.info { background: var(--surface-2); color: var(--ink); }
+.sumh { margin: 0; font-family: var(--font-read); font-weight: 600; font-size: 1em; }
+.sump { margin: 0; font-size: .85em; }
+
+/* answered questions: short rows */
+.qlist { list-style: none; margin: .3em 0 0; padding: .6em 0 0; border-top: 1px solid var(--line); font-size: .62em; display: flex; flex-direction: column; gap: .3em; }
+.qlist li { display: grid; grid-template-columns: 1.8em minmax(0, 1fr) auto; gap: .4em; align-items: baseline; }
+.rn { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.rq { color: var(--ink-soft); }
+.ra { font-weight: 700; color: var(--ink); }
+.mark { color: var(--ok); font-weight: 700; }
+.mark.shown { color: var(--ink-soft); }
+</style>
+
+<div class="wrap">
+  <h1 class="vh">Сім’я летить на відпочинок</h1>
+  <div class="cols">
+    <section class="card textcard" id="textcard" aria-labelledby="h-text"></section>
+    <section class="card qcard" id="qcol" aria-labelledby="h-q"></section>
+  </div>
+  <div id="live" class="vh" aria-live="polite"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SENTENCES = [
+    'Сім’я з трьох людей полетіла на відпочинок до Іспанії.',
+    'Тата звали Богдан, і йому було 40 років.',
+    'Богдан працює лікарем у міській лікарні.',
+    'Маму звали Наталія, і їй було 38 років.',
+    'Наталія працює бухгалтеркою в банку.',
+    'Доньку звали Соломія, і їй було 12 років.',
+    'Соломія вчиться в 6 класі, а ще ходить на танці.',
+    'Літак вилетів зранку, і політ тривав чотири години.',
+    'У літаку Соломія слухала музику, а мама читала книгу.',
+    'Увечері вони приземлилися, а потім поїхали до готелю.'
+  ];
+
+  /* MATCH-START */
+  /* accept: parts of a right answer (lower case, no apostrophes). A number must be a separate word. reject: parts of a wrong answer. */
+  var QUESTIONS = [
+    { q: 'Куди полетіла сім’я?', accept: ['іспані'], reject: [], ans: 'Іспанія', say: 'Сім’я полетіла на відпочинок до Іспанії.', ev: [0] },
+    { q: 'Як звали тата?', accept: ['богдан'], reject: ['наталі', 'соломі'], ans: 'Богдан', say: 'Тата звали Богдан.', ev: [1] },
+    { q: 'Скільки років було татові?', accept: ['40', 'сорок'], reject: [], ans: '40 років', say: 'Татові було 40 років.', ev: [1] },
+    { q: 'Де працює тато?', accept: ['лікарн', 'лікар'], reject: [], ans: 'лікарем у лікарні', say: 'Богдан працює лікарем у міській лікарні.', ev: [2] },
+    { q: 'Як звали маму?', accept: ['наталі'], reject: ['богдан', 'соломі'], ans: 'Наталія', say: 'Маму звали Наталія.', ev: [3] },
+    { q: 'Скільки років було мамі?', accept: ['38', 'тридцять вісім'], reject: [], ans: '38 років', say: 'Мамі було 38 років.', ev: [3] },
+    { q: 'Де працює мама?', accept: ['банк', 'бухгалтер'], reject: [], ans: 'бухгалтеркою в банку', say: 'Наталія працює бухгалтеркою в банку.', ev: [4] },
+    { q: 'Як звали доньку?', accept: ['соломі'], reject: ['богдан', 'наталі'], ans: 'Соломія', say: 'Доньку звали Соломія.', ev: [5] },
+    { q: 'Скільки років було Соломії?', accept: ['12', 'дванадцять'], reject: [], ans: '12 років', say: 'Соломії було 12 років.', ev: [5] },
+    { q: 'В якому класі вчиться Соломія?', accept: ['6', 'шост'], reject: [], ans: '6 клас', say: 'Соломія вчиться в 6 класі.', ev: [6] },
+    { q: 'Скільки годин тривав політ?', accept: ['4', 'чотир'], reject: [], ans: '4 години', say: 'Політ тривав чотири години.', ev: [7] },
+    { q: 'Куди вони поїхали після приземлення?', accept: ['готел'], reject: [], ans: 'до готелю', say: 'Після приземлення вони поїхали до готелю.', ev: [9] }
+  ];
+  function norm(s) {
+    return String(s).toLowerCase()
+      .replace(/[’'`ʼ′]/g, '')
+      .replace(/[«»"“”„.,!?;:()\-–—]/g, ' ')
+      .replace(/\s+/g, ' ').trim();
+  }
+  function has(t, a) {
+    if (/^\d+$/.test(a)) return t.split(' ').indexOf(a) >= 0;
+    return t.indexOf(a) >= 0;
+  }
+  /* returns null for an empty answer, otherwise true or false */
+  function checkAnswer(qd, val) {
+    var t = norm(val);
+    if (!t) return null;
+    var ok = qd.accept.some(function (a) { return has(t, a); });
+    if (ok && qd.reject.length) ok = !qd.reject.some(function (a) { return has(t, a); });
+    return ok;
+  }
+  /* MATCH-END */
+
+  var LS_KEY = 'simia-vidpochynok-v1';
+
+  /* ---------- last result (per viewer, optional) ---------- */
+  function loadStore() {
+    try {
+      var o = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      return o && typeof o === 'object' ? o : {};
+    } catch (e) { return {}; }
+  }
+  var store = loadStore();
+  function saveStore() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch (e) { /* storage unavailable */ }
+  }
+
+  /* ---------- state ---------- */
+  var S = { phase: 'read', reveal: 1, cur: 0, qs: [], saved: false, focus: null, select: false };
+  function freshQs() { return QUESTIONS.map(function () { return { val: '', wrong: 0, done: false, shown: false, msg: '' }; }); }
+  S.qs = freshQs();
+
+  var textcard = document.getElementById('textcard');
+  var qcol = document.getElementById('qcol');
+  var live = document.getElementById('live');
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function announce(msg) {
+    live.textContent = '';
+    setTimeout(function () { live.textContent = msg; }, 40);
+  }
+  function allDone() { return S.qs.every(function (q) { return q.done; }); }
+  function firstTries() {
+    return S.qs.filter(function (q) { return q.done && !q.shown && q.wrong === 0; }).length;
+  }
+  /* commas and full stops get colour and pause marks; each word is kept together with its punctuation so a mark never starts a new line alone */
+  function fmt(s) {
+    return s.split(' ').map(function (word) {
+      var out = '';
+      for (var i = 0; i < word.length; i++) {
+        var ch = word.charAt(i);
+        if (ch === ',') out += '<span class="pc comma">,</span><span class="pause c" aria-hidden="true">|</span>';
+        else if (ch === '.') out += '<span class="pc dot">.</span><span class="pause d" aria-hidden="true">||</span>';
+        else out += esc(ch);
+      }
+      return '<span class="w">' + out + '</span>';
+    }).join(' ');
+  }
+  function btn(label, attrs, cls) {
+    return '<button type="button" class="btn' + (cls ? ' ' + cls : '') + '" ' + attrs + '>' + label + '</button>';
+  }
+
+  /* ---------- text card ---------- */
+  function renderText() {
+    var quiz = S.phase === 'quiz', n = SENTENCES.length;
+    var hl = quiz && !allDone() ? QUESTIONS[S.cur].ev : [];
+    var h = '<h2 id="h-text" class="vh">Текст</h2>';
+    h += quiz ? '<p class="counter" aria-hidden="true">&nbsp;</p>' : '<p class="counter">Речення ' + S.reveal + ' з ' + n + '</p>';
+    h += '<div class="reading blocks">';
+    SENTENCES.forEach(function (s, i) {
+      var cls = 'sent', mark = '';
+      if (!quiz) {
+        if (i >= S.reveal) cls += ' unseen'; else if (i === S.reveal - 1) cls += ' current';
+      } else if (hl.indexOf(i) >= 0) {
+        cls += ' hl'; mark = '<span class="vh"> (підсвічене речення)</span>';
+      }
+      h += '<span class="' + cls + '">' + fmt(s) + mark + '</span>';
+    });
+    h += '</div>';
+    if (!quiz) {
+      h += '<div class="actions">' +
+        btn('Назад', 'data-act="prev"' + (S.reveal <= 1 ? ' disabled' : '')) +
+        (S.reveal < n ? btn('Далі', 'data-act="rnext" data-primary', 'primary') : btn('До питань', 'data-act="goq" data-primary', 'primary')) +
+        '</div>';
+    }
+    textcard.className = 'card textcard' + (quiz ? ' quiz' : '');
+    textcard.innerHTML = h;
+  }
+
+  /* ---------- questions ---------- */
+  function rowsHtml(upTo) {
+    var h = '<ol class="qlist" aria-label="Вже відповіли">';
+    for (var i = 0; i < upTo; i++) {
+      var qd = QUESTIONS[i], st = S.qs[i];
+      var ra = st.shown ? esc(qd.ans) + ' (показано)' : esc(st.val.trim() || qd.ans);
+      h += '<li><span class="rn">' + (i + 1) + '.</span><span><span class="rq">' + esc(qd.q) + '</span> <span class="ra">' + ra + '</span></span>' +
+        '<span class="mark' + (st.shown ? ' shown' : '') + '" aria-hidden="true">' + (st.shown ? '–' : '✓') + '</span></li>';
+    }
+    return h + '</ol>';
+  }
+  function currentHtml(i) {
+    var qd = QUESTIONS[i], st = S.qs[i], n = QUESTIONS.length;
+    var h = '<form class="qwrap" id="qi-' + i + '" data-q="' + i + '" novalidate>';
+    h += '<p class="qnum">Питання ' + (i + 1) + ' з ' + n + '</p>';
+    h += '<label class="question" for="ans-' + i + '">' + esc(qd.q) + '</label>';
+    h += '<input class="ans' + (st.done && !st.shown ? ' ok' : '') + '" id="ans-' + i + '" type="text" autocomplete="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done" placeholder="Напиши відповідь" value="' + esc(st.val) + '"' + (st.done ? ' readonly' : '') + ' aria-describedby="fb-' + i + '">';
+    var fb = '';
+    if (st.done && !st.shown) fb = '<div class="feedback ok">Так. ' + esc(qd.say) + '</div>';
+    else if (st.done) fb = '<div class="feedback info">Відповідь: ' + esc(qd.say) + '</div>';
+    else if (st.msg === 'empty') fb = '<div class="feedback info">Напиши відповідь у полі і натисни «Перевірити».</div>';
+    else if (st.msg === 'wrong') fb = '<div class="feedback no">Ще ні. Перечитай підсвічене речення і спробуй ще раз.</div>';
+    h += '<div class="fbslot" id="fb-' + i + '">' + fb + '</div>';
+    if (i > 0) h += rowsHtml(i);
+    if (!st.done) {
+      h += '<div class="actions">' +
+        (st.wrong >= 2 ? btn('Показати відповідь', 'data-act="show" data-q="' + i + '"') : '') +
+        '<button type="submit" class="btn primary">Перевірити</button></div>';
+    } else {
+      h += '<div class="actions">' + btn('Наступне питання', 'data-act="qnext" data-primary', 'primary') + '</div>';
+    }
+    return h + '</form>';
+  }
+  function summaryHtml() {
+    return '<div class="qwrap" id="summary" tabindex="-1"><h3 class="sumh">Готово</h3>' +
+      '<p class="sump">Правильно з першої спроби: ' + firstTries() + ' з ' + QUESTIONS.length + '.</p>' +
+      rowsHtml(QUESTIONS.length) +
+      '<div class="actions">' + btn('Прочитати ще раз', 'data-act="redo"', 'primary') + '</div></div>';
+  }
+  function renderQuiz() {
+    var total = QUESTIONS.length, h = '<h2 id="h-q" class="vh">Питання</h2>';
+    if (S.phase !== 'quiz') {
+      h += '<p class="ph-text">Питання з’являться тут, коли ти дочитаєш текст. Всього питань: ' + total + '.</p>' +
+        '<p class="ph-text">Відповідай на кожне питання в полі під ним.</p>';
+      if (store.result && typeof store.result.first === 'number') {
+        h += '<p class="ph-text">Минулого разу: ' + store.result.first + ' з ' + store.result.total + ' правильно з першої спроби.</p>';
+      }
+    } else {
+      h += allDone() ? summaryHtml() : currentHtml(S.cur);
+    }
+    qcol.innerHTML = h;
+  }
+
+  function postRender() {
+    if (S.focus) {
+      var f = document.querySelector(S.focus);
+      if (f) { f.focus({ preventScroll: true }); if (S.select && f.select) f.select(); }
+      S.focus = null; S.select = false;
+    }
+  }
+
+  function finishIfDone() {
+    if (allDone() && !S.saved) {
+      store.result = { first: firstTries(), total: QUESTIONS.length };
+      saveStore();
+      S.saved = true;
+    }
+  }
+
+  /* ---------- font size: the largest value for which everything fits in the card height ---------- */
+  function overflows(el) { return el.scrollHeight > el.clientHeight + 1; }
+  function bothFit() { return !overflows(textcard) && !overflows(qcol); }
+  function fitsAtCurrentSize() {
+    var n = SENTENCES.length, last = QUESTIONS.length - 1;
+    /* reading: all sentences shown, last button */
+    S.phase = 'read'; S.reveal = n; renderText(); renderQuiz();
+    if (!bothFit()) return false;
+    /* questions: the last question with an error message, two buttons and all earlier answers as rows */
+    S.phase = 'quiz'; S.cur = last;
+    S.qs = QUESTIONS.map(function (q, i) {
+      return { val: q.ans, wrong: i === last ? 2 : 0, done: i < last, shown: false, msg: i === last ? 'wrong' : '' };
+    });
+    renderText(); renderQuiz();
+    if (!bothFit()) return false;
+    /* summary with all rows */
+    S.qs = QUESTIONS.map(function (q) { return { val: q.ans, wrong: 0, done: true, shown: false, msg: '' }; });
+    renderText(); renderQuiz();
+    return bothFit();
+  }
+  function refit() {
+    var ae = document.activeElement, sel = null, ss = null, se = null;
+    if (ae && ae !== document.body) {
+      if (ae.id) sel = '#' + ae.id;
+      else if (ae.getAttribute && ae.getAttribute('data-act')) sel = '[data-act="' + ae.getAttribute('data-act') + '"]';
+      if (ae.classList && ae.classList.contains('ans')) {
+        var fm = ae.closest('form');
+        if (fm) S.qs[Number(fm.getAttribute('data-q'))].val = ae.value;
+        try { ss = ae.selectionStart; se = ae.selectionEnd; } catch (e) { /* ignore */ }
+      }
+    }
+    var saved = JSON.parse(JSON.stringify(S));
+    var lo = 9, hi = 72, best = 9;
+    while (hi - lo > 0.5) {
+      var mid = (lo + hi) / 2;
+      document.documentElement.style.setProperty('--fs', mid + 'px');
+      if (fitsAtCurrentSize()) { best = mid; lo = mid; } else { hi = mid; }
+    }
+    document.documentElement.style.setProperty('--fs', best + 'px');
+    S = saved;
+    renderText(); renderQuiz();
+    if (sel) {
+      var e2 = document.querySelector(sel);
+      if (e2) {
+        e2.focus({ preventScroll: true });
+        if (ss !== null) { try { e2.setSelectionRange(ss, se); } catch (e) { /* ignore */ } }
+      }
+    }
+  }
+
+  /* ---------- actions ---------- */
+  function act(name, el) {
+    var n = SENTENCES.length;
+    switch (name) {
+      case 'prev':
+        S.reveal = Math.max(1, S.reveal - 1);
+        S.focus = S.reveal > 1 ? '[data-act="prev"]' : '[data-primary]';
+        renderText();
+        break;
+      case 'rnext':
+        S.reveal = Math.min(n, S.reveal + 1); S.focus = '[data-primary]';
+        renderText();
+        break;
+      case 'goq':
+        S.phase = 'quiz'; S.cur = 0; S.focus = '#ans-0';
+        renderText(); renderQuiz();
+        break;
+      case 'qnext':
+        S.cur = Math.min(S.cur + 1, QUESTIONS.length - 1); S.focus = '#ans-' + S.cur;
+        renderText(); renderQuiz();
+        break;
+      case 'show': {
+        var i = Number(el.getAttribute('data-q')), st = S.qs[i];
+        st.done = true; st.shown = true; st.msg = '';
+        finishIfDone();
+        announce('Відповідь: ' + QUESTIONS[i].say);
+        S.focus = allDone() ? '#summary' : '[data-primary]';
+        if (allDone()) renderText();
+        renderQuiz();
+        break;
+      }
+      case 'redo':
+        S.phase = 'read'; S.reveal = 1; S.cur = 0; S.qs = freshQs(); S.saved = false; S.focus = '[data-primary]';
+        renderText(); renderQuiz();
+        break;
+    }
+    postRender();
+  }
+
+  function submitAnswer(form) {
+    var i = Number(form.getAttribute('data-q')), st = S.qs[i], qd = QUESTIONS[i];
+    if (st.done) return;
+    st.val = form.querySelector('input').value;
+    var r = checkAnswer(qd, st.val);
+    if (r === null) {
+      st.msg = 'empty'; S.focus = '#ans-' + i; announce('Напиши відповідь у полі.');
+    } else if (r) {
+      st.done = true; st.msg = '';
+      finishIfDone();
+      announce('Так. ' + qd.say);
+      S.focus = allDone() ? '#summary' : '[data-primary]';
+      if (allDone()) renderText();
+    } else {
+      st.wrong++; st.msg = 'wrong'; S.focus = '#ans-' + i; S.select = true;
+      announce('Ще ні. Перечитай підсвічене речення і спробуй ще раз.');
+    }
+    renderQuiz();
+    postRender();
+  }
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-act]');
+    if (!el || el.disabled) return;
+    act(el.getAttribute('data-act'), el);
+  });
+  document.addEventListener('submit', function (e) {
+    var form = e.target.closest ? e.target.closest('form.qwrap') : null;
+    if (!form) return;
+    e.preventDefault();
+    submitAnswer(form);
+  });
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('ans')) {
+      var form = t.closest('form.qwrap');
+      if (form) S.qs[Number(form.getAttribute('data-q'))].val = t.value;
+    }
+  });
+
+  var timer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(timer);
+    timer = setTimeout(refit, 150);
+  });
+
+  renderText();
+  renderQuiz();
+  refit();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+})();
+</script>
+
+</body></html>
