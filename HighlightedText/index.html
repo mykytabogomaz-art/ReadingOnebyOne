@@ -1,0 +1,740 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Читання з паузами</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:wght@400;600&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: desktop only, one screen, 80% of the screen width, full height. Same look as the other reading pages.
+   Phase 1 (read-along): one wide card with the text. Words light up one by one; on commas and full stops the highlight stops and the mark turns solid.
+   Phase 2 (table): the text stays on the left (the sentence with the answer lights up when a cell is focused), the table is on the right.
+   Buttons are the last element of a card and sit exactly 30px above its bottom edge.
+   --fs is the base font size; a script picks the largest value that fits the card height for the current phase. */
+:root {
+  --bg: #F3F6F7;
+  --surface: #FFFFFF;
+  --surface-2: #E8EEF1;
+  --ink: #1C2630;
+  --ink-soft: #4F5D6A;
+  --line: #CFD8DE;
+  --comma: #AD4A06;
+  --comma-bg: #FCE6D2;
+  --dot: #1B55C4;
+  --dot-bg: #DCE7FB;
+  --hl: #FFE98A;
+  --hl-line: #8A6A00;
+  --btn: #243746;
+  --btn-ink: #FFFFFF;
+  --ok: #17693F;
+  --ok-bg: #DDF1E5;
+  --no: #8E3345;
+  --no-bg: #F7E2E6;
+  --font-read: 'Literata', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Source Sans 3', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --fs: 20px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11171C;
+    --surface: #1A222A;
+    --surface-2: #232D37;
+    --ink: #E8EEF3;
+    --ink-soft: #A9B7C3;
+    --line: #33424F;
+    --comma: #FFB566;
+    --comma-bg: #3B2A17;
+    --dot: #9DBEFF;
+    --dot-bg: #1F3050;
+    --hl: #4D4210;
+    --hl-line: #F0CF4A;
+    --btn: #D3E3EE;
+    --btn-ink: #11171C;
+    --ok: #74D6A0;
+    --ok-bg: #173326;
+    --no: #F4A3B1;
+    --no-bg: #3A1F27;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11171C;
+  --surface: #1A222A;
+  --surface-2: #232D37;
+  --ink: #E8EEF3;
+  --ink-soft: #A9B7C3;
+  --line: #33424F;
+  --comma: #FFB566;
+  --comma-bg: #3B2A17;
+  --dot: #9DBEFF;
+  --dot-bg: #1F3050;
+  --hl: #4D4210;
+  --hl-line: #F0CF4A;
+  --btn: #D3E3EE;
+  --btn-ink: #11171C;
+  --ok: #74D6A0;
+  --ok-bg: #173326;
+  --no: #F4A3B1;
+  --no-bg: #3A1F27;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--fs);
+  line-height: 1.5;
+  overflow: hidden;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--dot); outline-offset: 2px; }
+h2:focus { outline: none; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.wrap { width: 80vw; max-width: 100%; margin: 0 auto; height: 100%; display: flex; flex-direction: column; }
+.cols { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); gap: 16px; }
+.cols.t-read { grid-template-columns: minmax(0, 1fr); }
+.cols.t-read .qcard { display: none; }
+.cols.t-table { grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 24px 30px; display: flex; flex-direction: column; gap: .55em; min-width: 0; min-height: 0; overflow: hidden; }
+
+/* buttons: always the last element of a card, pinned 30px above its bottom edge */
+.actions { margin-top: auto; display: flex; flex-wrap: wrap; gap: .8em; align-items: center; }
+.btn { font-size: .75em; line-height: 1.3; padding: .55em 1.2em; border-radius: .5em; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 600; }
+.btn:hover:not(:disabled) { border-color: var(--ink-soft); }
+.btn { white-space: nowrap; }
+.btn[data-act="play"] { min-width: 8.6em; }
+.btn.primary, .btn[aria-pressed="true"] { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); }
+.btn:disabled { opacity: .45; cursor: default; color: var(--ink); }
+.btn.primary:disabled { color: var(--btn-ink); }
+.speed { margin-left: auto; display: flex; align-items: center; gap: .5em; flex-wrap: wrap; }
+.spl { font-size: .6em; color: var(--ink-soft); }
+
+/* reading text */
+.reading { font-family: var(--font-read); font-size: 1em; line-height: 1.5; letter-spacing: .01em; word-spacing: .1em; margin: 0; }
+.reading.blocks { display: flex; flex-direction: column; gap: .3em; }
+.sent { display: block; padding: .2em 0 .2em .6em; border-left: .2em solid transparent; color: var(--ink); }
+.sent.cur { border-left-color: var(--ink); }
+.sent.hl { background: var(--hl); border-left-color: var(--hl-line); border-radius: 0 .4em .4em 0; }
+.w { white-space: nowrap; }
+.w.cur { background: var(--hl); border-radius: .25em; box-shadow: 0 0 0 .1em var(--hl); }
+.pc { display: inline-block; font-weight: 700; padding: 0 .12em; margin: 0 .04em; border-radius: .22em; line-height: 1.1; font-size: 1.2em; }
+.pc.comma { color: var(--comma); background: var(--comma-bg); }
+.pc.dot { color: var(--dot); background: var(--dot-bg); }
+.w.pausing .pc.comma { background: var(--comma); color: var(--surface); }
+.w.pausing .pc.dot { background: var(--dot); color: var(--surface); }
+.pause { font-family: var(--font-ui); font-size: .7em; font-weight: 700; margin-left: .1em; letter-spacing: -.05em; vertical-align: .15em; }
+.pause.c { color: var(--comma); }
+.pause.d { color: var(--dot); }
+
+/* table */
+.tlead { margin: 0; font-size: .6em; color: var(--ink-soft); }
+.qwrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .55em; margin: 0; }
+.tbl { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: .4em .7em; font-size: .8em; }
+.tbl th { font-weight: 600; color: var(--ink-soft); text-align: left; vertical-align: bottom; font-size: .85em; line-height: 1.25; padding: 0 .2em; }
+.tbl tbody th { color: var(--ink); font-size: 1em; vertical-align: middle; }
+.cell { width: 100%; padding: .6em .55em; border: 2px solid var(--line); border-radius: .4em; background: var(--bg); color: var(--ink); font-size: 1em; }
+.cell.ok { border-color: var(--ok); background: var(--ok-bg); }
+.cell.bad { border-color: var(--no); background: var(--no-bg); }
+.cell.shown { border-style: dashed; border-color: var(--ink-soft); background: var(--surface-2); }
+.cell[readonly] { cursor: default; }
+.fbslot { min-height: 2.6em; }
+.feedback { padding: .45em .7em; border-radius: .5em; font-weight: 600; font-size: .75em; line-height: 1.4; }
+.feedback.ok { background: var(--ok-bg); color: var(--ok); }
+.feedback.no { background: var(--no-bg); color: var(--no); }
+.feedback.info { background: var(--surface-2); color: var(--ink); }
+
+/* step 3: sentences with gaps; the filled table stays on the left as a reference */
+.cols.t-gaps { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.tbl.ref { font-size: .74em; border-spacing: .3em; }
+.tbl.ref td { background: var(--surface-2); border-radius: .4em; padding: .5em .4em; vertical-align: top; overflow-wrap: break-word; }
+.tbl.ref td.hl { background: var(--hl); box-shadow: 0 0 0 2px var(--hl-line); }
+.gl { display: flex; flex-direction: column; gap: .5em; }
+.gs { margin: 0; font-family: var(--font-read); font-size: .9em; line-height: 2.1; letter-spacing: .01em; word-spacing: .1em; }
+.gap { font-family: var(--font-read); font-size: 1em; padding: .05em .35em; border: 2px solid var(--line); border-radius: .3em; background: var(--bg); color: var(--ink); text-align: center; }
+.gap.ok { border-color: var(--ok); background: var(--ok-bg); }
+.gap.bad { border-color: var(--no); background: var(--no-bg); }
+.gap.shown { border-style: dashed; border-color: var(--ink-soft); background: var(--surface-2); }
+.gap[readonly] { cursor: default; }
+</style>
+
+<div class="wrap">
+  <h1 class="vh">Читання з паузами</h1>
+  <div class="cols t-read" id="cols">
+    <section class="card textcard" id="textcard" aria-labelledby="h-text"></section>
+    <section class="card qcard" id="qcol" aria-labelledby="h-q"></section>
+  </div>
+  <div id="live" class="vh" aria-live="polite"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SENTENCES = [
+    'Це розповідь про сім’ю з трьох людей.',
+    'Тата звали Олег, і йому було 47 років.',
+    'Олег працює механіком в автомайстерні.',
+    'У вільний час, коли немає роботи, він ловить рибу.',
+    'Маму звали Ірина, і їй було 44 роки.',
+    'Ірина працює медсестрою в дитячій лікарні.',
+    'Удома вона любить квіти, тому доглядає за ними щодня.',
+    'Доньку звали Мілана, і їй було 14 років.',
+    'Мілана вчиться в 8 класі, а у вільний час малює.',
+    'Увечері вони збираються разом, і всі розповідають про день.'
+  ];
+
+  /* MATCH-START */
+  /* accept: parts of a right answer (lower case, no apostrophes). A number must be a separate word. reject: parts of a wrong answer. ev: the sentence that holds the answer. */
+  var HEAD = ['Ім’я', 'Скільки років', 'Робота або навчання', 'Що любить робити'];
+  var ROWS = [
+    { who: 'Тато', cells: [
+      { accept: ['олег'], reject: ['ірин', 'мілан'], ans: 'Олег', ev: 1 },
+      { accept: ['47', 'сорок сім'], reject: [], ans: '47 років', ev: 1 },
+      { accept: ['механік', 'автомайст'], reject: [], ans: 'механік в автомайстерні', ev: 2 },
+      { accept: ['риб'], reject: [], ans: 'ловити рибу', ev: 3 }
+    ] },
+    { who: 'Мама', cells: [
+      { accept: ['ірин'], reject: ['олег', 'мілан'], ans: 'Ірина', ev: 4 },
+      { accept: ['44', 'сорок чотири'], reject: [], ans: '44 роки', ev: 4 },
+      { accept: ['медсестр', 'лікарн'], reject: [], ans: 'медсестра в лікарні', ev: 5 },
+      { accept: ['квіт'], reject: [], ans: 'доглядати за квітами', ev: 6 }
+    ] },
+    { who: 'Донька', cells: [
+      { accept: ['мілан'], reject: ['олег', 'ірин'], ans: 'Мілана', ev: 7 },
+      { accept: ['14', 'чотирнадцять'], reject: [], ans: '14 років', ev: 7 },
+      { accept: ['8', 'восьм', 'клас'], reject: [], ans: '8 клас', ev: 8 },
+      { accept: ['малю'], reject: [], ans: 'малювати', ev: 8 }
+    ] }
+  ];
+  function norm(s) {
+    return String(s).toLowerCase()
+      .replace(/[’'`ʼ′]/g, '')
+      .replace(/[«»"“”„.,!?;:()\-–—]/g, ' ')
+      .replace(/\s+/g, ' ').trim();
+  }
+  function has(t, a) {
+    if (/^\d+$/.test(a)) return t.split(' ').indexOf(a) >= 0;
+    return t.indexOf(a) >= 0;
+  }
+  /* returns null for an empty answer, otherwise true or false */
+  function checkAnswer(cell, val) {
+    var t = norm(val);
+    if (!t) return null;
+    var ok = cell.accept.some(function (a) { return has(t, a); });
+    if (ok && cell.reject.length) ok = !cell.reject.some(function (a) { return has(t, a); });
+    return ok;
+  }
+  /* MATCH-END */
+
+  var SPEEDS = [{ name: 'Повільно', f: 0.7 }, { name: 'Середньо', f: 1 }, { name: 'Швидко', f: 1.4 }];
+  var LS_KEY = 'chytannia-z-pauzamy-v1';
+  var TOTAL = ROWS.length * HEAD.length;
+
+  /* step 3: {n} is a gap. b: the table cell [row, column] that holds the answer. g: the answer as it stands in the table (for the width and for "show answers") */
+  var FRAMES = [
+    { t: 'Тата звали {0}, і йому було {1} років.', b: [[0, 0], [0, 1]], g: ['Олег', '47'] },
+    { t: 'Олег — {0} в автомайстерні, а у вільний час він любить {1}.', b: [[0, 2], [0, 3]], g: ['механік', 'ловити рибу'] },
+    { t: 'Маму звали {0}, і їй було {1} роки.', b: [[1, 0], [1, 1]], g: ['Ірина', '44'] },
+    { t: 'Ірина — {0} в лікарні, а вдома вона любить {1}.', b: [[1, 2], [1, 3]], g: ['медсестра', 'доглядати за квітами'] },
+    { t: 'Доньку звали {0}, і їй було {1} років.', b: [[2, 0], [2, 1]], g: ['Мілана', '14'] },
+    { t: 'Мілана вчиться в {0} класі, а у вільний час любить {1}.', b: [[2, 2], [2, 3]], g: ['8', 'малювати'] }
+  ];
+  function freshGaps() { return FRAMES.map(function (f) { return f.b.map(function () { return { val: '', st: '', shown: false }; }); }); }
+
+  /* ---------- saved speed and last result (per viewer, optional) ---------- */
+  function loadStore() {
+    try {
+      var o = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      return o && typeof o === 'object' ? o : {};
+    } catch (e) { return {}; }
+  }
+  var store = loadStore();
+  function saveStore() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch (e) { /* storage unavailable */ }
+  }
+
+  /* ---------- words with timing ---------- */
+  var WORDS = [];
+  SENTENCES.forEach(function (s, si) {
+    s.split(' ').forEach(function (w) {
+      var last = w.charAt(w.length - 1);
+      WORDS.push({ s: si, len: w.replace(/[^Ѐ-ӿA-Za-z0-9]/g, '').length, punct: last === ',' ? 'comma' : last === '.' ? 'dot' : '' });
+    });
+  });
+  function wordMs(w) { return (280 + 45 * w.len) / SPEEDS[S.speed].f; }
+  function pauseMs(w) { return (w.punct === 'comma' ? 700 : w.punct === 'dot' ? 1400 : 0) / SPEEDS[S.speed].f; }
+
+  /* ---------- state ---------- */
+  function freshCells() { return ROWS.map(function (row) { return row.cells.map(function () { return { val: '', st: '', shown: false }; }); }); }
+  var S = {
+    phase: 'read', state: 'idle', pos: 0, inPause: false, timer: null,
+    speed: store.speed === 0 || store.speed === 2 ? store.speed : 1,
+    readDone: false, hl: null, gh: null, gaps: freshGaps(), gchecks: 0, gfirst: null, gmsg: null, gdone: false,
+    cells: freshCells(), checks: 0, firstCorrect: null, msg: null, done: false, saved: false,
+    focus: null
+  };
+
+  var cols = document.getElementById('cols');
+  var textcard = document.getElementById('textcard');
+  var qcol = document.getElementById('qcol');
+  var live = document.getElementById('live');
+  var wordEls = null, curEl = null, curSent = null;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function announce(msg) {
+    live.textContent = '';
+    setTimeout(function () { live.textContent = msg; }, 40);
+  }
+  function btn(label, attrs, cls) {
+    return '<button type="button" class="btn' + (cls ? ' ' + cls : '') + '" ' + attrs + '>' + label + '</button>';
+  }
+
+  /* ---------- text card ---------- */
+  /* each word is kept together with its punctuation so a mark never starts a new line alone */
+  function inner(word) {
+    var out = '';
+    for (var i = 0; i < word.length; i++) {
+      var ch = word.charAt(i);
+      if (ch === ',') out += '<span class="pc comma">,</span><span class="pause c" aria-hidden="true">|</span>';
+      else if (ch === '.') out += '<span class="pc dot">.</span><span class="pause d" aria-hidden="true">||</span>';
+      else out += esc(ch);
+    }
+    return out;
+  }
+  function wordHtml(word, wi) {
+    return '<span class="w" data-w="' + wi + '">' + inner(word) + '</span>';
+  }
+  function controlsHtml() {
+    var st = S.state, fin = st === 'finished';
+    var label = st === 'playing' ? 'Пауза' : st === 'paused' ? 'Продовжити' : fin ? 'Ще раз' : 'Старт';
+    var h = '<div class="actions">';
+    h += btn(label, 'data-act="play"' + (fin ? '' : ' data-primary'), fin ? '' : 'primary');
+    h += btn('Спочатку', 'data-act="reset"' + (st === 'idle' ? ' disabled' : ''));
+    h += btn('До таблиці', 'data-act="totable"' + (S.readDone ? '' : ' disabled') + (fin ? ' data-primary' : ''), fin ? 'primary' : '');
+    h += '<div class="speed" role="group" aria-label="Швидкість читання"><span class="spl">Швидкість</span>';
+    SPEEDS.forEach(function (sp, i) {
+      h += btn(sp.name, 'data-act="speed" data-v="' + i + '" aria-pressed="' + (S.speed === i) + '"');
+    });
+    return h + '</div></div>';
+  }
+  function renderText() {
+    if (S.phase === 'gaps') { renderRef(); return; }
+    var h = '<h2 id="h-text" class="vh">Текст</h2><div class="reading blocks">', wi = 0;
+    SENTENCES.forEach(function (s, i) {
+      var words = s.split(' ').map(function (w) { return wordHtml(w, wi++); }).join(' ');
+      var hl = S.phase === 'table' && S.hl === i;
+      h += '<span class="sent' + (hl ? ' hl' : '') + '" data-s="' + i + '">' + words + (hl ? '<span class="vh"> (підсвічене речення)</span>' : '') + '</span>';
+    });
+    h += '</div>';
+    if (S.phase === 'read') h += controlsHtml();
+    textcard.innerHTML = h;
+    wordEls = null; curEl = null; curSent = null;
+    if (S.phase === 'read' && (S.state === 'playing' || S.state === 'paused')) setMark(S.pos, S.inPause);
+  }
+  function setMark(pos, pausing) {
+    if (!wordEls) wordEls = [].slice.call(textcard.querySelectorAll('.w'));
+    if (curEl) curEl.classList.remove('cur', 'pausing');
+    if (curSent) curSent.classList.remove('cur');
+    curEl = wordEls[pos] || null;
+    curSent = null;
+    if (curEl) {
+      curEl.classList.add('cur');
+      if (pausing) curEl.classList.add('pausing');
+      curSent = curEl.parentNode;
+      curSent.classList.add('cur');
+    }
+  }
+  function applyHl() {
+    var els = textcard.querySelectorAll('.sent');
+    for (var i = 0; i < els.length; i++) els[i].classList.toggle('hl', S.phase === 'table' && S.hl === i);
+  }
+
+  /* ---------- read-along ---------- */
+  function playStep() {
+    if (S.state !== 'playing') return;
+    var w = WORDS[S.pos];
+    S.inPause = false;
+    setMark(S.pos, false);
+    S.timer = setTimeout(function () {
+      if (S.state !== 'playing') return;
+      if (w.punct) {
+        S.inPause = true;
+        setMark(S.pos, true);
+        S.timer = setTimeout(advance, pauseMs(w));
+      } else {
+        advance();
+      }
+    }, wordMs(w));
+  }
+  function advance() {
+    if (S.state !== 'playing') return;
+    S.inPause = false;
+    S.pos++;
+    if (S.pos >= WORDS.length) finishReading(); else playStep();
+  }
+  function stopTimer() { clearTimeout(S.timer); S.timer = null; }
+  function finishReading() {
+    stopTimer();
+    S.state = 'finished'; S.readDone = true; S.pos = 0; S.inPause = false;
+    renderText();
+    S.focus = '[data-primary]';
+    postRender();
+    announce('Читання завершено. Тепер можна заповнити таблицю.');
+  }
+
+  /* ---------- table card ---------- */
+  function cellDone(st) { return st.st === 'ok' || st.shown; }
+  function allCellsDone() {
+    return S.cells.every(function (row) { return row.every(cellDone); });
+  }
+  function renderRight() {
+    if (S.phase === 'gaps') { renderGaps(); return; }
+    if (S.phase !== 'table') { qcol.innerHTML = ''; return; }
+    var h = '<h2 id="h-q" class="vh">Таблиця</h2>';
+    h += '<p class="tlead">Заповни таблицю. Натисни на клітинку, і речення в тексті підсвітиться.</p>';
+    h += '<form class="qwrap" id="tform" novalidate><table class="tbl"><colgroup><col style="width:16%"><col style="width:17%"><col style="width:13%"><col style="width:27%"><col style="width:27%"></colgroup>';
+    h += '<thead><tr><th scope="col"><span class="vh">Хто</span></th>';
+    HEAD.forEach(function (t) { h += '<th scope="col">' + esc(t) + '</th>'; });
+    h += '</tr></thead><tbody>';
+    ROWS.forEach(function (row, r) {
+      h += '<tr><th scope="row">' + esc(row.who) + '</th>';
+      row.cells.forEach(function (cell, c) {
+        var st = S.cells[r][c];
+        var cls = 'cell' + (st.st === 'ok' ? ' ok' : st.st === 'bad' ? ' bad' : '') + (st.shown ? ' shown' : '');
+        h += '<td><input class="' + cls + '" id="c-' + r + '-' + c + '" type="text" autocomplete="off" spellcheck="false" data-r="' + r + '" data-c="' + c + '" data-ev="' + cell.ev + '"' +
+          ' aria-label="' + esc(row.who + ': ' + HEAD[c].toLowerCase()) + '" value="' + esc(st.val) + '"' + (cellDone(st) ? ' readonly' : '') + '></td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table>';
+    var fb = '';
+    if (S.done) fb = '<div class="feedback ok">Готово. З першої перевірки правильно: ' + (S.firstCorrect || 0) + ' з ' + TOTAL + '.</div>';
+    else if (S.msg) fb = '<div class="feedback ' + S.msg.t + '">' + esc(S.msg.x) + '</div>';
+    h += '<div class="fbslot">' + fb + '</div>';
+    if (S.done) {
+      h += '<div class="actions">' + btn('Прочитати ще раз', 'data-act="redo"') + btn('Далі: речення', 'data-act="togaps" data-primary', 'primary') + '</div>';
+    } else {
+      h += '<div class="actions">' + btn('До читання', 'data-act="toread"') +
+        (S.checks >= 2 ? btn('Показати відповіді', 'data-act="reveal"') : '') +
+        '<button type="submit" class="btn primary">Перевірити</button></div>';
+    }
+    qcol.innerHTML = h + '</form>';
+  }
+
+  /* step 3 */
+  function renderRef() {
+    var h = '<h2 id="h-text" class="vh">Таблиця</h2><p class="tlead">Це твоя таблиця. Дивись у неї, коли заповнюєш речення.</p>';
+    h += '<table class="tbl ref"><colgroup><col style="width:13%"><col style="width:19%"><col style="width:14%"><col style="width:30%"><col style="width:24%"></colgroup><thead><tr><th scope="col"><span class="vh">Хто</span></th>';
+    HEAD.forEach(function (t) { h += '<th scope="col">' + esc(t) + '</th>'; });
+    h += '</tr></thead><tbody>';
+    ROWS.forEach(function (row, r) {
+      h += '<tr><th scope="row">' + esc(row.who) + '</th>';
+      row.cells.forEach(function (cell, c) {
+        h += '<td class="rc' + (S.gh === r + '-' + c ? ' hl' : '') + '" data-k="' + r + '-' + c + '">' + esc(cell.ans) + '</td>';
+      });
+      h += '</tr>';
+    });
+    textcard.innerHTML = h + '</tbody></table>';
+    wordEls = null; curEl = null; curSent = null;
+  }
+  function applyGh() {
+    var els = textcard.querySelectorAll('.rc');
+    for (var i = 0; i < els.length; i++) els[i].classList.toggle('hl', S.phase === 'gaps' && els[i].getAttribute('data-k') === S.gh);
+  }
+  function gapDone(st) { return st.st === 'ok' || st.shown; }
+  function allGapsDone() {
+    return S.gaps.every(function (row) { return row.every(gapDone); });
+  }
+  function frameHtml(fi) {
+    var f = FRAMES[fi], h = '<p class="gs">';
+    f.t.split(' ').forEach(function (tok, ti) {
+      var m = tok.match(/^\{(\d)\}(.*)$/), html;
+      if (m) {
+        var j = Number(m[1]), st = S.gaps[fi][j], rc = f.b[j];
+        var w = Math.max(3.4, f.g[j].length * 0.52 + 1.4);
+        var cls = 'gap' + (st.st === 'ok' ? ' ok' : st.st === 'bad' ? ' bad' : '') + (st.shown ? ' shown' : '');
+        html = '<span class="w"><input class="' + cls + '" id="g-' + fi + '-' + j + '" type="text" autocomplete="off" spellcheck="false"' +
+          ' data-f="' + fi + '" data-j="' + j + '" data-r="' + rc[0] + '" data-c="' + rc[1] + '" style="width:' + w + 'em"' +
+          ' aria-label="' + esc('Пропуск ' + (j + 1) + ' у реченні ' + (fi + 1)) + '" value="' + esc(st.val) + '"' + (gapDone(st) ? ' readonly' : '') + '>' + inner(m[2]) + '</span>';
+      } else {
+        html = '<span class="w">' + inner(tok) + '</span>';
+      }
+      h += (ti ? ' ' : '') + html;
+    });
+    return h + '</p>';
+  }
+  function renderGaps() {
+    var h = '<h2 id="h-q" class="vh">Речення з пропусками</h2>';
+    h += '<p class="tlead">Впиши в пропуски слова з таблиці. Натисни на пропуск, і клітинка в таблиці підсвітиться.</p>';
+    h += '<form class="qwrap" id="gform" novalidate><div class="gl">';
+    FRAMES.forEach(function (f, i) { h += frameHtml(i); });
+    h += '</div>';
+    var fb = '';
+    if (S.gdone) fb = '<div class="feedback ok">Готово. З першої перевірки правильно: ' + (S.gfirst || 0) + ' з ' + TOTAL + '.</div>';
+    else if (S.gmsg) fb = '<div class="feedback ' + S.gmsg.t + '">' + esc(S.gmsg.x) + '</div>';
+    h += '<div class="fbslot">' + fb + '</div>';
+    if (S.gdone) {
+      h += '<div class="actions">' + btn('До таблиці', 'data-act="totable"') + btn('Прочитати ще раз', 'data-act="redo" data-primary', 'primary') + '</div>';
+    } else {
+      h += '<div class="actions">' + btn('До таблиці', 'data-act="totable"') +
+        (S.gchecks >= 2 ? btn('Показати відповіді', 'data-act="revealg"') : '') +
+        '<button type="submit" class="btn primary">Перевірити</button></div>';
+    }
+    qcol.innerHTML = h + '</form>';
+  }
+  function checkGaps() {
+    var okCount = 0;
+    FRAMES.forEach(function (f, fi) {
+      f.b.forEach(function (rc, j) {
+        var st = S.gaps[fi][j];
+        if (gapDone(st)) { if (st.st === 'ok') okCount++; return; }
+        var res = checkAnswer(ROWS[rc[0]].cells[rc[1]], st.val);
+        if (res === true) { st.st = 'ok'; okCount++; } else { st.st = 'bad'; }
+      });
+    });
+    S.gchecks++;
+    if (S.gchecks === 1) S.gfirst = okCount;
+    if (allGapsDone()) {
+      S.gdone = true; S.gmsg = null;
+      announce('Готово. Усі пропуски правильні.');
+      S.focus = '[data-primary]';
+    } else {
+      S.gmsg = { t: 'no', x: 'Правильно: ' + okCount + ' з ' + TOTAL + '. Виправ пропуски з червоною рамкою.' };
+      announce(S.gmsg.x);
+      var firstBad = null;
+      for (var a = 0; a < S.gaps.length && !firstBad; a++) {
+        for (var b2 = 0; b2 < S.gaps[a].length; b2++) { if (S.gaps[a][b2].st === 'bad') { firstBad = '#g-' + a + '-' + b2; break; } }
+      }
+      S.focus = firstBad;
+    }
+    renderRight();
+  }
+
+  function checkTable() {
+    var okCount = 0, filled = 0;
+    ROWS.forEach(function (row, r) {
+      row.cells.forEach(function (cell, c) {
+        var st = S.cells[r][c];
+        if (cellDone(st)) { if (st.st === 'ok') okCount++; return; }
+        var res = checkAnswer(cell, st.val);
+        if (res !== null) filled++;
+        if (res === true) { st.st = 'ok'; okCount++; } else { st.st = 'bad'; }
+      });
+    });
+    S.checks++;
+    if (S.checks === 1) S.firstCorrect = okCount;
+    if (allCellsDone()) {
+      S.done = true; S.msg = null;
+      finishTable();
+      announce('Готово. Усі клітинки правильні.');
+      S.focus = '[data-primary]';
+    } else {
+      S.msg = { t: 'no', x: 'Правильно: ' + okCount + ' з ' + TOTAL + '. Виправ клітинки з червоною рамкою.' };
+      announce(S.msg.x);
+      var firstBad = null;
+      for (var r2 = 0; r2 < S.cells.length && !firstBad; r2++) {
+        for (var c2 = 0; c2 < S.cells[r2].length; c2++) { if (S.cells[r2][c2].st === 'bad') { firstBad = '#c-' + r2 + '-' + c2; break; } }
+      }
+      S.focus = firstBad;
+    }
+    renderRight();
+  }
+  function finishTable() {
+    if (!S.saved) {
+      store.result = { first: S.firstCorrect || 0, total: TOTAL };
+      saveStore();
+      S.saved = true;
+    }
+  }
+
+  /* ---------- font size: the largest value for which everything fits in the card height ---------- */
+  function overflows(el) { return el.scrollHeight > el.clientHeight + 1; }
+  /* the last button must keep its 30px distance from the bottom edge of the card */
+  function bottomGapOk(card) {
+    var b = card.querySelectorAll('.actions .btn');
+    if (!b.length) return true;
+    return card.getBoundingClientRect().bottom - b[b.length - 1].getBoundingClientRect().bottom - 1 >= 29;
+  }
+  function cardsFit() {
+    return !overflows(textcard) && !overflows(qcol) && bottomGapOk(textcard) && bottomGapOk(qcol);
+  }
+  function selFor(el) {
+    if (!el || el === document.body) return null;
+    if (el.id) return '#' + el.id;
+    var a = el.getAttribute && el.getAttribute('data-act');
+    if (a) return '[data-act="' + a + '"]' + (el.getAttribute('data-v') ? '[data-v="' + el.getAttribute('data-v') + '"]' : '');
+    return null;
+  }
+  function applyLayout() { cols.className = 'cols ' + (S.phase === 'table' ? 't-table' : S.phase === 'gaps' ? 't-gaps' : 't-read'); }
+  function refit() {
+    var ae = document.activeElement, sel = selFor(ae), ss = null, se = null;
+    if (ae && ae.tagName === 'INPUT') {
+      try { ss = ae.selectionStart; se = ae.selectionEnd; } catch (e) { /* ignore */ }
+    }
+    var lo = 9, hi = 72, best = 9;
+    while (hi - lo > 0.5) {
+      var mid = (lo + hi) / 2;
+      document.documentElement.style.setProperty('--fs', mid + 'px');
+      renderText(); renderRight();
+      if (cardsFit()) { best = mid; lo = mid; } else { hi = mid; }
+    }
+    document.documentElement.style.setProperty('--fs', best + 'px');
+    renderText(); renderRight();
+    if (sel) {
+      var e2 = document.querySelector(sel);
+      if (e2) {
+        e2.focus({ preventScroll: true });
+        if (ss !== null) { try { e2.setSelectionRange(ss, se); } catch (e) { /* ignore */ } }
+      }
+    }
+  }
+  function postRender() {
+    if (S.focus) {
+      var f = document.querySelector(S.focus);
+      if (f) f.focus({ preventScroll: true });
+      S.focus = null;
+    }
+  }
+  function go(phase) {
+    stopTimer();
+    S.phase = phase; S.state = 'idle'; S.pos = 0; S.inPause = false;
+    applyLayout();
+    refit();
+  }
+
+  /* ---------- actions ---------- */
+  function act(name, el) {
+    switch (name) {
+      case 'play':
+        if (S.state === 'playing') {
+          stopTimer(); S.state = 'paused';
+          renderText();
+        } else {
+          if (S.state === 'finished') S.pos = 0;
+          S.state = 'playing'; S.inPause = false;
+          renderText();
+          playStep();
+        }
+        S.focus = '[data-act="play"]';
+        break;
+      case 'reset':
+        stopTimer(); S.state = 'idle'; S.pos = 0; S.inPause = false;
+        renderText();
+        S.focus = '[data-act="play"]';
+        break;
+      case 'speed':
+        S.speed = Number(el.getAttribute('data-v')); store.speed = S.speed; saveStore();
+        renderText();
+        S.focus = '[data-act="speed"][data-v="' + S.speed + '"]';
+        break;
+      case 'totable':
+        if (!S.readDone) return;
+        go('table');
+        S.focus = '#c-0-0';
+        break;
+      case 'toread':
+        go('read');
+        S.focus = '[data-act="play"]';
+        break;
+      case 'reveal':
+        ROWS.forEach(function (row, r) {
+          row.cells.forEach(function (cell, c) {
+            var st = S.cells[r][c];
+            if (!cellDone(st)) { st.val = cell.ans; st.shown = true; st.st = ''; }
+          });
+        });
+        S.done = true; S.msg = null;
+        finishTable();
+        announce('Відповіді показано.');
+        renderRight();
+        S.focus = '[data-primary]';
+        break;
+      case 'togaps':
+        if (!S.done) return;
+        go('gaps');
+        S.focus = '#g-0-0';
+        break;
+      case 'revealg':
+        FRAMES.forEach(function (f, fi) {
+          f.b.forEach(function (rc, j) {
+            var st = S.gaps[fi][j];
+            if (!gapDone(st)) { st.val = f.g[j]; st.shown = true; st.st = ''; }
+          });
+        });
+        S.gdone = true; S.gmsg = null;
+        announce('Відповіді показано.');
+        renderRight();
+        S.focus = '[data-primary]';
+        break;
+      case 'redo':
+        S.cells = freshCells(); S.checks = 0; S.firstCorrect = null; S.msg = null; S.done = false; S.saved = false; S.hl = null; S.readDone = false;
+        S.gaps = freshGaps(); S.gchecks = 0; S.gfirst = null; S.gmsg = null; S.gdone = false; S.gh = null;
+        go('read');
+        S.focus = '[data-primary]';
+        break;
+    }
+    postRender();
+  }
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-act]');
+    if (!el || el.disabled) return;
+    act(el.getAttribute('data-act'), el);
+  });
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (form.id === 'tform') {
+      e.preventDefault();
+      if (!S.done) { checkTable(); postRender(); }
+    } else if (form.id === 'gform') {
+      e.preventDefault();
+      if (!S.gdone) { checkGaps(); postRender(); }
+    }
+  });
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('cell')) {
+      var st = S.cells[Number(t.getAttribute('data-r'))][Number(t.getAttribute('data-c'))];
+      st.val = t.value;
+      if (st.st === 'bad') { st.st = ''; t.classList.remove('bad'); }
+    } else if (t && t.classList && t.classList.contains('gap')) {
+      var gs = S.gaps[Number(t.getAttribute('data-f'))][Number(t.getAttribute('data-j'))];
+      gs.val = t.value;
+      if (gs.st === 'bad') { gs.st = ''; t.classList.remove('bad'); }
+    }
+  });
+  document.addEventListener('focusin', function (e) {
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('cell')) {
+      S.hl = Number(t.getAttribute('data-ev'));
+      applyHl();
+    } else if (t && t.classList && t.classList.contains('gap')) {
+      S.gh = t.getAttribute('data-r') + '-' + t.getAttribute('data-c');
+      applyGh();
+    }
+  });
+
+  var timer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(timer);
+    timer = setTimeout(refit, 150);
+  });
+
+  applyLayout();
+  renderText();
+  renderRight();
+  refit();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+})();
+</script>
+
+</body></html>
