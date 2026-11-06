@@ -5,7 +5,8 @@
 <style>
 /* Layout: desktop only, one screen, 80% of the screen width, full height. Same look as the other reading pages.
    Phase 1 (read-along): one wide card with the text. Words light up one by one; on commas and full stops the highlight stops and the mark turns solid.
-   Phase 2 (table): the text stays on the left (the sentence with the answer lights up when a cell is focused), the table is on the right.
+   Phase 3 (writing): the filled table on the left, four text boxes (one per table row) on the right.
+   Phase 2 (table): the text stays on the left in a smaller size, split into the same parts as the table rows; the table is on the right.
    Buttons are the last element of a card and sit exactly 30px above its bottom edge.
    --fs is the base font size; a script picks the largest value that fits the card height for the current phase. */
 :root {
@@ -99,7 +100,8 @@ h2:focus { outline: none; }
 .cols { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); gap: 16px; }
 .cols.t-read { grid-template-columns: minmax(0, 1fr); }
 .cols.t-read .qcard { display: none; }
-.cols.t-table { grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); }
+.cols.t-table { grid-template-columns: minmax(0, .62fr) minmax(0, 1.38fr); }
+.cols.t-table .textcard .reading { font-size: .7em; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 24px 30px; display: flex; flex-direction: column; gap: .55em; min-width: 0; min-height: 0; overflow: hidden; }
 
 /* buttons: always the last element of a card, pinned 30px above its bottom edge */
@@ -119,6 +121,7 @@ h2:focus { outline: none; }
 .reading.blocks { display: flex; flex-direction: column; gap: .3em; }
 .sent { display: block; padding: .2em 0 .2em .6em; border-left: .2em solid transparent; color: var(--ink); }
 .sent.cur { border-left-color: var(--ink); }
+.sent.part { margin-top: .7em; }
 .sent.hl { background: var(--hl); border-left-color: var(--hl-line); border-radius: 0 .4em .4em 0; }
 .w { white-space: nowrap; }
 .w.cur { background: var(--hl); border-radius: .25em; box-shadow: 0 0 0 .1em var(--hl); }
@@ -137,7 +140,7 @@ h2:focus { outline: none; }
 .tbl { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: .4em .7em; font-size: .8em; }
 .tbl th { font-weight: 600; color: var(--ink-soft); text-align: left; vertical-align: bottom; font-size: .85em; line-height: 1.25; padding: 0 .2em; }
 .tbl tbody th { color: var(--ink); font-size: 1em; vertical-align: middle; }
-.cell { width: 100%; padding: .6em .55em; border: 2px solid var(--line); border-radius: .4em; background: var(--bg); color: var(--ink); font-size: 1em; }
+.cell { display: block; width: 100%; padding: .45em .55em; border: 2px solid var(--line); border-radius: .4em; background: var(--bg); color: var(--ink); font: inherit; font-size: 1em; line-height: 1.3; resize: none; overflow: hidden; }
 .cell.ok { border-color: var(--ok); background: var(--ok-bg); }
 .cell.bad { border-color: var(--no); background: var(--no-bg); }
 .cell.shown { border-style: dashed; border-color: var(--ink-soft); background: var(--surface-2); }
@@ -148,18 +151,18 @@ h2:focus { outline: none; }
 .feedback.no { background: var(--no-bg); color: var(--no); }
 .feedback.info { background: var(--surface-2); color: var(--ink); }
 
-/* step 3: sentences with gaps; the filled table stays on the left as a reference */
-.cols.t-gaps { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-.tbl.ref { font-size: .7em; border-spacing: .25em; }
+/* step 3: write each part of the story; the filled table stays on the left as a reference */
+.cols.t-gaps { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+.tbl.ref { font-size: .62em; border-spacing: .25em; }
 .tbl.ref td { background: var(--surface-2); border-radius: .4em; padding: .5em .4em; vertical-align: top; overflow-wrap: break-word; }
 .tbl.ref td.hl { background: var(--hl); box-shadow: 0 0 0 2px var(--hl-line); }
-.gl { display: flex; flex-direction: column; gap: .5em; }
-.gs { margin: 0; font-family: var(--font-read); font-size: .9em; line-height: 2.1; letter-spacing: .01em; word-spacing: .1em; }
-.gap { font-family: var(--font-read); font-size: 1em; padding: .05em .35em; border: 2px solid var(--line); border-radius: .3em; background: var(--bg); color: var(--ink); text-align: center; }
-.gap.ok { border-color: var(--ok); background: var(--ok-bg); }
-.gap.bad { border-color: var(--no); background: var(--no-bg); }
-.gap.shown { border-style: dashed; border-color: var(--ink-soft); background: var(--surface-2); }
-.gap[readonly] { cursor: default; }
+.gl { display: flex; flex-direction: column; gap: .45em; }
+.wr { display: block; width: 100%; font-family: var(--font-read); font-size: .8em; line-height: 1.45; padding: .4em .6em; border: 2px solid var(--line); border-radius: .4em; background: var(--bg); color: var(--ink); resize: none; overflow-y: auto; }
+.wr.ok { border-color: var(--ok); background: var(--ok-bg); }
+.wr.bad { border-color: var(--no); background: var(--no-bg); }
+.wr[readonly] { cursor: default; }
+.wnote { margin: .15em 0 0; font-size: .6em; line-height: 1.35; color: var(--no); font-weight: 600; }
+.wnote.ex { color: var(--ink-soft); font-weight: 400; }
 </style>
 
 <div class="wrap">
@@ -177,38 +180,42 @@ h2:focus { outline: none; }
 
   var SENTENCES = [
     'Артемові 10 років, і він дуже любить шоколад.',
-    'У суботу він з радістю пішов з мамою в магазин.',
-    'Мама взяла візок, а Артем допомагав їй вибирати фрукти.',
-    'Біля каси Артем побачив шоколадку і поклав її в кишеню.',
-    'Мама заплатила за продукти, а Артем стояв спокійно, бо забув про шоколадку.',
-    'Уже біля виходу він згадав про неї, і йому стало страшно.',
-    'Артем чесно сказав мамі, що забув заплатити.',
-    'Вони разом повернулися до каси, і Артем заплатив 25 гривень.',
-    'Він попросив вибачення, а касирка усміхнулася.',
+    'Спочатку Артем з мамою прийшли в магазин.',
+    'Артем вибирав фрукти, і він був радий.',
+    'Потім вони підійшли до каси.',
+    'Там Артем поклав шоколадку в кишеню і спокійно чекав, бо забув про неї.',
+    'Після цього вони пішли до виходу.',
+    'Артем згадав, що не заплатив за шоколадку, і йому стало страшно.',
+    'Наприкінці вони повернулися до каси.',
+    'Артем заплатив 25 гривень і попросив вибачення, і йому стало легко.',
     'Мама обійняла Артема і сказала, що пишається ним.'
   ];
+  /* the first sentence of each part of the story (one part = one row of the table) */
+  var PART_STARTS = [1, 3, 5, 7];
 
   /* MATCH-START */
   /* accept: parts of a right answer (lower case, no apostrophes). A number must be a separate word. reject: parts of a wrong answer. ev: the sentence that holds the answer. */
-  var HEAD = ['Де вони були', 'Що зробив Артем', 'Що зробила мама', 'Як почувався Артем'];
+  var HEAD = ['Де вони були', 'Що зробив Артем', 'Як почувався Артем'];
   var ROWS = [
     { who: 'Спочатку', cells: [
       { accept: ['магазин'], reject: [], ans: 'у магазині', ev: 1 },
-      { accept: ['фрукт', 'допомаг'], reject: [], ans: 'допомагав вибирати фрукти', ev: 2 },
-      { accept: ['візок'], reject: [], ans: 'взяла візок', ev: 2 },
-      { accept: ['рад', 'весел'], reject: [], ans: 'радий', ev: 1 }
+      { accept: ['фрукт', 'вибира'], reject: [], ans: 'вибирав фрукти', ev: 2 },
+      { accept: ['рад', 'весел'], reject: [], ans: 'радий', ev: 2 }
     ] },
     { who: 'Потім', cells: [
       { accept: ['кас'], reject: [], ans: 'біля каси', ev: 3 },
-      { accept: ['кишен', 'поклав'], reject: [], ans: 'поклав шоколадку в кишеню', ev: 3 },
-      { accept: ['заплатила', 'оплатила'], reject: ['не заплат', 'не оплат'], ans: 'заплатила за продукти', ev: 4 },
+      { accept: ['кишен', 'поклав'], reject: [], ans: 'поклав шоколадку в кишеню', ev: 4 },
       { accept: ['спокій'], reject: [], ans: 'спокійний', ev: 4 }
     ] },
-    { who: 'Наприкінці', cells: [
+    { who: 'Після цього', cells: [
       { accept: ['вихід', 'вихо', 'двер'], reject: [], ans: 'біля виходу', ev: 5 },
-      { accept: ['заплатив', 'оплатив'], reject: ['не заплат', 'не оплат'], ans: 'заплатив за шоколадку', ev: 7 },
-      { accept: ['пишає', 'обійня', 'обійм'], reject: [], ans: 'сказала, що пишається ним', ev: 9 },
-      { accept: ['страшн', 'налякан', 'злякав', 'переляк', 'боявся'], reject: [], ans: 'йому було страшно', ev: 5 }
+      { accept: ['згада', 'не заплат', 'не оплат', 'забув'], reject: [], ans: 'згадав, що не заплатив', ev: 6 },
+      { accept: ['страш', 'налякан', 'злякав', 'переляк', 'боявся'], reject: [], ans: 'страшно', ev: 6 }
+    ] },
+    { who: 'Наприкінці', cells: [
+      { accept: ['кас'], reject: [], ans: 'знову біля каси', ev: 7 },
+      { accept: ['заплатив', 'оплатив', 'вибач'], reject: ['не заплат', 'не оплат'], ans: 'заплатив за шоколадку', ev: 8 },
+      { accept: ['легк', 'добре', 'рад', 'щаслив'], reject: [], ans: 'легко', ev: 8 }
     ] }
   ];
   function norm(s) {
@@ -235,16 +242,20 @@ h2:focus { outline: none; }
   var LS_KEY = 'chytannia-z-pauzamy-shokoladka-v1';
   var TOTAL = ROWS.length * HEAD.length;
 
-  /* step 3: {n} is a gap. b: the table cell [row, column] that holds the answer. g: the answer as it stands in the table (for the width and for "show answers") */
-  var FRAMES = [
-    { t: 'Спочатку вони були {0}, і Артем був {1}.', b: [[0, 0], [0, 3]], g: ['у магазині', 'радий'] },
-    { t: 'Мама взяла {0}, а Артем допомагав вибирати {1}.', b: [[0, 2], [0, 1]], g: ['візок', 'фрукти'] },
-    { t: 'Потім вони стояли {0}, і Артем {1} шоколадку в кишеню.', b: [[1, 0], [1, 1]], g: ['біля каси', 'поклав'] },
-    { t: 'Мама {0} за продукти, а Артем був {1}.', b: [[1, 2], [1, 3]], g: ['заплатила', 'спокійний'] },
-    { t: 'Біля {0} Артем згадав про шоколадку, і йому стало {1}.', b: [[2, 0], [2, 3]], g: ['виходу', 'страшно'] },
-    { t: 'Артем {0} за шоколадку, а мама сказала, що {1} ним.', b: [[2, 1], [2, 2]], g: ['заплатив', 'пишається'] }
+  /* step 3: one text box per table row, starting with the row name. A part is done when it has all three facts of its row and ends with a full stop. */
+  var EXAMPLES = [
+    'Спочатку вони були в магазині. Артем вибирав фрукти, і він був радий.',
+    'Потім вони стояли біля каси. Артем поклав шоколадку в кишеню, і він був спокійний.',
+    'Після цього вони були біля виходу. Артем згадав, що не заплатив, і йому стало страшно.',
+    'Наприкінці вони знову були біля каси. Артем заплатив за шоколадку, і йому стало легко.'
   ];
-  function freshGaps() { return FRAMES.map(function (f) { return f.b.map(function () { return { val: '', st: '', shown: false }; }); }); }
+  function freshGaps() { return ROWS.map(function (row) { return { val: row.who + ' ', st: '', miss: [], dot: true }; }); }
+  /* which facts of row r are missing in the text, and does it end with a full stop */
+  function checkPart(r, val) {
+    var miss = [];
+    ROWS[r].cells.forEach(function (cell, c) { if (checkAnswer(cell, val) !== true) miss.push(c); });
+    return { miss: miss, dot: /[.!?]\s*$/.test(val) };
+  }
 
   /* ---------- saved speed and last result (per viewer, optional) ---------- */
   function loadStore() {
@@ -274,7 +285,7 @@ h2:focus { outline: none; }
   var S = {
     phase: 'read', state: 'idle', pos: 0, inPause: false, timer: null,
     speed: store.speed === 0 || store.speed === 2 ? store.speed : 1,
-    readDone: false, hl: null, gh: null, gaps: freshGaps(), gchecks: 0, gfirst: null, gmsg: null, gdone: false,
+    readDone: false, hl: null, gh: null, gaps: freshGaps(), gchecks: 0, gex: false, gmsg: null, gdone: false,
     cells: freshCells(), checks: 0, firstCorrect: null, msg: null, done: false, saved: false,
     focus: null
   };
@@ -332,7 +343,7 @@ h2:focus { outline: none; }
     SENTENCES.forEach(function (s, i) {
       var words = s.split(' ').map(function (w) { return wordHtml(w, wi++); }).join(' ');
       var hl = S.phase === 'table' && S.hl === i;
-      h += '<span class="sent' + (hl ? ' hl' : '') + '" data-s="' + i + '">' + words + (hl ? '<span class="vh"> (підсвічене речення)</span>' : '') + '</span>';
+      h += '<span class="sent' + (PART_STARTS.indexOf(i) >= 0 ? ' part' : '') + (hl ? ' hl' : '') + '" data-s="' + i + '">' + words + (hl ? '<span class="vh"> (підсвічене речення)</span>' : '') + '</span>';
     });
     h += '</div>';
     if (S.phase === 'read') h += controlsHtml();
@@ -400,8 +411,8 @@ h2:focus { outline: none; }
     if (S.phase === 'gaps') { renderGaps(); return; }
     if (S.phase !== 'table') { qcol.innerHTML = ''; return; }
     var h = '<h2 id="h-q" class="vh">Таблиця</h2>';
-    h += '<p class="tlead">Заповни таблицю. Шукай відповіді в тексті зліва.</p>';
-    h += '<form class="qwrap" id="tform" novalidate><table class="tbl"><colgroup><col style="width:19%"><col style="width:15%"><col style="width:24%"><col style="width:24%"><col style="width:18%"></colgroup>';
+    h += '<p class="tlead">Заповни таблицю. Кожен рядок — це одна частина тексту: Спочатку, Потім, Після цього, Наприкінці.</p>';
+    h += '<form class="qwrap" id="tform" novalidate><table class="tbl"><colgroup><col style="width:17%"><col style="width:25%"><col style="width:33%"><col style="width:25%"></colgroup>';
     h += '<thead><tr><th scope="col"><span class="vh">Хто</span></th>';
     HEAD.forEach(function (t) { h += '<th scope="col">' + esc(t) + '</th>'; });
     h += '</tr></thead><tbody>';
@@ -410,8 +421,8 @@ h2:focus { outline: none; }
       row.cells.forEach(function (cell, c) {
         var st = S.cells[r][c];
         var cls = 'cell' + (st.st === 'ok' ? ' ok' : st.st === 'bad' ? ' bad' : '') + (st.shown ? ' shown' : '');
-        h += '<td><input class="' + cls + '" id="c-' + r + '-' + c + '" type="text" autocomplete="off" spellcheck="false" data-r="' + r + '" data-c="' + c + '" data-ev="' + cell.ev + '"' +
-          ' aria-label="' + esc(row.who + ': ' + HEAD[c].toLowerCase()) + '" value="' + esc(st.val) + '"' + (cellDone(st) ? ' readonly' : '') + '></td>';
+        h += '<td><textarea rows="3" class="' + cls + '" id="c-' + r + '-' + c + '" autocomplete="off" spellcheck="false" data-r="' + r + '" data-c="' + c + '" data-ev="' + cell.ev + '"' +
+          ' aria-label="' + esc(row.who + ': ' + HEAD[c].toLowerCase()) + '"' + (cellDone(st) ? ' readonly' : '') + '>' + esc(st.val) + '</textarea></td>';
       });
       h += '</tr>';
     });
@@ -421,7 +432,7 @@ h2:focus { outline: none; }
     else if (S.msg) fb = '<div class="feedback ' + S.msg.t + '">' + esc(S.msg.x) + '</div>';
     h += '<div class="fbslot">' + fb + '</div>';
     if (S.done) {
-      h += '<div class="actions">' + btn('Прочитати ще раз', 'data-act="redo"') + btn('Далі: речення', 'data-act="togaps" data-primary', 'primary') + '</div>';
+      h += '<div class="actions">' + btn('Прочитати ще раз', 'data-act="redo"') + btn('Далі: напиши історію', 'data-act="togaps" data-primary', 'primary') + '</div>';
     } else {
       h += '<div class="actions">' + btn('До читання', 'data-act="toread"') +
         (S.checks >= 2 ? btn('Показати відповіді', 'data-act="reveal"') : '') +
@@ -432,14 +443,14 @@ h2:focus { outline: none; }
 
   /* step 3 */
   function renderRef() {
-    var h = '<h2 id="h-text" class="vh">Таблиця</h2><p class="tlead">Це твоя таблиця. Дивись у неї, коли заповнюєш речення.</p>';
-    h += '<table class="tbl ref"><colgroup><col style="width:18%"><col style="width:17%"><col style="width:21%"><col style="width:22%"><col style="width:22%"></colgroup><thead><tr><th scope="col"><span class="vh">Хто</span></th>';
+    var h = '<h2 id="h-text" class="vh">Таблиця</h2><p class="tlead">Це твоя таблиця. Дивись у неї, коли пишеш.</p>';
+    h += '<table class="tbl ref"><colgroup><col style="width:24%"><col style="width:23%"><col style="width:29%"><col style="width:24%"></colgroup><thead><tr><th scope="col"><span class="vh">Хто</span></th>';
     HEAD.forEach(function (t) { h += '<th scope="col">' + esc(t) + '</th>'; });
     h += '</tr></thead><tbody>';
     ROWS.forEach(function (row, r) {
       h += '<tr><th scope="row">' + esc(row.who) + '</th>';
       row.cells.forEach(function (cell, c) {
-        h += '<td class="rc' + (S.gh === r + '-' + c ? ' hl' : '') + '" data-k="' + r + '-' + c + '">' + esc(cell.ans) + '</td>';
+        h += '<td class="rc' + (S.gh === r ? ' hl' : '') + '" data-k="' + r + '-' + c + '">' + esc(cell.ans) + '</td>';
       });
       h += '</tr>';
     });
@@ -448,75 +459,61 @@ h2:focus { outline: none; }
   }
   function applyGh() {
     var els = textcard.querySelectorAll('.rc');
-    for (var i = 0; i < els.length; i++) els[i].classList.toggle('hl', S.phase === 'gaps' && els[i].getAttribute('data-k') === S.gh);
+    for (var i = 0; i < els.length; i++) els[i].classList.toggle('hl', S.phase === 'gaps' && S.gh !== null && els[i].getAttribute('data-k').split('-')[0] === String(S.gh));
   }
-  function gapDone(st) { return st.st === 'ok' || st.shown; }
-  function allGapsDone() {
-    return S.gaps.every(function (row) { return row.every(gapDone); });
-  }
-  function frameHtml(fi) {
-    var f = FRAMES[fi], h = '<p class="gs">';
-    f.t.split(' ').forEach(function (tok, ti) {
-      var m = tok.match(/^\{(\d)\}(.*)$/), html;
-      if (m) {
-        var j = Number(m[1]), st = S.gaps[fi][j], rc = f.b[j];
-        var w = Math.max(3.4, f.g[j].length * 0.52 + 1.4);
-        var cls = 'gap' + (st.st === 'ok' ? ' ok' : st.st === 'bad' ? ' bad' : '') + (st.shown ? ' shown' : '');
-        html = '<span class="w"><input class="' + cls + '" id="g-' + fi + '-' + j + '" type="text" autocomplete="off" spellcheck="false"' +
-          ' data-f="' + fi + '" data-j="' + j + '" data-r="' + rc[0] + '" data-c="' + rc[1] + '" style="width:' + w + 'em"' +
-          ' aria-label="' + esc('Пропуск ' + (j + 1) + ' у реченні ' + (fi + 1)) + '" value="' + esc(st.val) + '"' + (gapDone(st) ? ' readonly' : '') + '>' + inner(m[2]) + '</span>';
-      } else {
-        html = '<span class="w">' + inner(tok) + '</span>';
-      }
-      h += (ti ? ' ' : '') + html;
-    });
-    return h + '</p>';
-  }
+  function allGapsDone() { return S.gaps.every(function (g) { return g.st === 'ok'; }); }
   function renderGaps() {
-    var h = '<h2 id="h-q" class="vh">Речення з пропусками</h2>';
-    h += '<p class="tlead">Впиши в пропуски слова з таблиці. Натисни на пропуск, і клітинка в таблиці підсвітиться.</p>';
+    var h = '<h2 id="h-q" class="vh">Напиши історію</h2>';
+    h += '<p class="tlead">Напиши кожну частину історії. Дивись у таблицю: де вони були, що зробив Артем, як він почувався. В кінці постав крапку.</p>';
     h += '<form class="qwrap" id="gform" novalidate><div class="gl">';
-    FRAMES.forEach(function (f, i) { h += frameHtml(i); });
+    S.gaps.forEach(function (g, r) {
+      var cls = 'wr' + (g.st === 'ok' ? ' ok' : g.st === 'bad' ? ' bad' : '');
+      h += '<div><textarea rows="3" class="' + cls + '" id="g-' + r + '" data-r="' + r + '" autocomplete="off" spellcheck="false" aria-label="' + esc(ROWS[r].who) + '"' +
+        (g.st === 'ok' ? ' readonly' : '') + '>' + esc(g.val) + '</textarea>';
+      if (g.st === 'bad') {
+        var parts = [];
+        if (g.miss.length) parts.push('Додай: ' + g.miss.map(function (c) { return HEAD[c].charAt(0).toLowerCase() + HEAD[c].slice(1); }).join(', ') + '.');
+        if (!g.dot) parts.push('Постав крапку в кінці.');
+        h += '<p class="wnote" id="n-' + r + '">' + esc(parts.join(' ')) + '</p>';
+      }
+      if (S.gex && g.st !== 'ok') h += '<p class="wnote ex">Приклад: ' + esc(EXAMPLES[r]) + '</p>';
+      h += '</div>';
+    });
     h += '</div>';
     var fb = '';
-    if (S.gdone) fb = '<div class="feedback ok">Готово. З першої перевірки правильно: ' + (S.gfirst || 0) + ' з ' + TOTAL + '.</div>';
+    if (S.gdone) fb = '<div class="feedback ok">Готово. Ти написав усю історію.</div>';
     else if (S.gmsg) fb = '<div class="feedback ' + S.gmsg.t + '">' + esc(S.gmsg.x) + '</div>';
     h += '<div class="fbslot">' + fb + '</div>';
     if (S.gdone) {
       h += '<div class="actions">' + btn('До таблиці', 'data-act="totable"') + btn('Прочитати ще раз', 'data-act="redo" data-primary', 'primary') + '</div>';
     } else {
       h += '<div class="actions">' + btn('До таблиці', 'data-act="totable"') +
-        (S.gchecks >= 2 ? btn('Показати відповіді', 'data-act="revealg"') : '') +
+        (S.gchecks >= 2 && !S.gex ? btn('Показати приклад', 'data-act="revealg"') : '') +
         '<button type="submit" class="btn primary">Перевірити</button></div>';
     }
     qcol.innerHTML = h + '</form>';
   }
   function checkGaps() {
     var okCount = 0;
-    FRAMES.forEach(function (f, fi) {
-      f.b.forEach(function (rc, j) {
-        var st = S.gaps[fi][j];
-        if (gapDone(st)) { if (st.st === 'ok') okCount++; return; }
-        var res = checkAnswer(ROWS[rc[0]].cells[rc[1]], st.val);
-        if (res === true) { st.st = 'ok'; okCount++; } else { st.st = 'bad'; }
-      });
+    S.gaps.forEach(function (g, r) {
+      if (g.st === 'ok') { okCount++; return; }
+      var res = checkPart(r, g.val);
+      g.miss = res.miss; g.dot = res.dot;
+      if (!res.miss.length && res.dot) { g.st = 'ok'; okCount++; } else { g.st = 'bad'; }
     });
     S.gchecks++;
-    if (S.gchecks === 1) S.gfirst = okCount;
     if (allGapsDone()) {
       S.gdone = true; S.gmsg = null;
-      announce('Готово. Усі пропуски правильні.');
+      announce('Готово. Ти написав усю історію.');
       S.focus = '[data-primary]';
     } else {
-      S.gmsg = { t: 'no', x: 'Правильно: ' + okCount + ' з ' + TOTAL + '. Виправ пропуски з червоною рамкою.' };
+      S.gmsg = { t: 'no', x: 'Готово частин: ' + okCount + ' з ' + S.gaps.length + '. Допиши частини з червоною рамкою.' };
       announce(S.gmsg.x);
       var firstBad = null;
-      for (var a = 0; a < S.gaps.length && !firstBad; a++) {
-        for (var b2 = 0; b2 < S.gaps[a].length; b2++) { if (S.gaps[a][b2].st === 'bad') { firstBad = '#g-' + a + '-' + b2; break; } }
-      }
+      S.gaps.forEach(function (g, r) { if (!firstBad && g.st === 'bad') firstBad = '#g-' + r; });
       S.focus = firstBad;
     }
-    renderRight();
+    refit(); /* notes under the boxes take space: pick the font size again */
   }
 
   function checkTable() {
@@ -577,7 +574,7 @@ h2:focus { outline: none; }
   function applyLayout() { cols.className = 'cols ' + (S.phase === 'table' ? 't-table' : S.phase === 'gaps' ? 't-gaps' : 't-read'); }
   function refit() {
     var ae = document.activeElement, sel = selFor(ae), ss = null, se = null;
-    if (ae && ae.tagName === 'INPUT') {
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) {
       try { ss = ae.selectionStart; se = ae.selectionEnd; } catch (e) { /* ignore */ }
     }
     var lo = 9, hi = 72, best = 9;
@@ -661,23 +658,17 @@ h2:focus { outline: none; }
       case 'togaps':
         if (!S.done) return;
         go('gaps');
-        S.focus = '#g-0-0';
+        S.focus = '#g-0';
         break;
       case 'revealg':
-        FRAMES.forEach(function (f, fi) {
-          f.b.forEach(function (rc, j) {
-            var st = S.gaps[fi][j];
-            if (!gapDone(st)) { st.val = f.g[j]; st.shown = true; st.st = ''; }
-          });
-        });
-        S.gdone = true; S.gmsg = null;
-        announce('Відповіді показано.');
-        renderRight();
-        S.focus = '[data-primary]';
+        S.gex = true;
+        announce('Під кожною частиною є приклад.');
+        refit();
+        S.focus = '#g-0';
         break;
       case 'redo':
         S.cells = freshCells(); S.checks = 0; S.firstCorrect = null; S.msg = null; S.done = false; S.saved = false; S.hl = null; S.readDone = false;
-        S.gaps = freshGaps(); S.gchecks = 0; S.gfirst = null; S.gmsg = null; S.gdone = false; S.gh = null;
+        S.gaps = freshGaps(); S.gchecks = 0; S.gex = false; S.gmsg = null; S.gdone = false; S.gh = null;
         go('read');
         S.focus = '[data-primary]';
         break;
@@ -700,23 +691,32 @@ h2:focus { outline: none; }
       if (!S.gdone) { checkGaps(); postRender(); }
     }
   });
+  document.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if (e.key === 'Enter' && t && t.classList && t.classList.contains('cell')) {
+      e.preventDefault();
+      if (!S.done) { checkTable(); postRender(); }
+    }
+  });
   document.addEventListener('input', function (e) {
     var t = e.target;
     if (t && t.classList && t.classList.contains('cell')) {
       var st = S.cells[Number(t.getAttribute('data-r'))][Number(t.getAttribute('data-c'))];
       st.val = t.value;
       if (st.st === 'bad') { st.st = ''; t.classList.remove('bad'); }
-    } else if (t && t.classList && t.classList.contains('gap')) {
-      var gs = S.gaps[Number(t.getAttribute('data-f'))][Number(t.getAttribute('data-j'))];
-      gs.val = t.value;
-      if (gs.st === 'bad') { gs.st = ''; t.classList.remove('bad'); }
+    } else if (t && t.classList && t.classList.contains('wr')) {
+      S.gaps[Number(t.getAttribute('data-r'))].val = t.value;
     }
   });
   document.addEventListener('focusin', function (e) {
     var t = e.target;
-    if (t && t.classList && t.classList.contains('gap')) {
-      S.gh = t.getAttribute('data-r') + '-' + t.getAttribute('data-c');
+    if (t && t.classList && t.classList.contains('wr')) {
+      S.gh = Number(t.getAttribute('data-r'));
       applyGh();
+      /* a box that still holds only the part name: put the cursor after it */
+      if (t.value.trim() === ROWS[S.gh].who && !t.readOnly) {
+        setTimeout(function () { try { var n = t.value.length; t.setSelectionRange(n, n); } catch (err) { /* ignore */ } }, 0);
+      }
     }
   });
 
